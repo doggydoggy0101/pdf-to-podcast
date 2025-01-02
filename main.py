@@ -19,6 +19,9 @@ from pypdf import PdfReader
 from tenacity import retry, retry_if_exception_type
 
 
+os.environ["OPENAI_API_KEY"] = ""
+
+
 if sentry_dsn := os.getenv("SENTRY_DSN"):
     sentry_sdk.init(sentry_dsn)
 
@@ -29,14 +32,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class DialogueItem(BaseModel):
     text: str
-    speaker: Literal["female-1", "male-1", "female-2"]
+    speaker: Literal["male-1", "male-2"]
 
     @property
     def voice(self):
         return {
-            "female-1": "alloy",
-            "male-1": "onyx",
-            "female-2": "shimmer",
+            "male-1": "echo",
+            "male-2": "alloy",
         }[self.speaker]
 
 
@@ -72,38 +74,73 @@ def generate_audio(file: str, openai_api_key: str = None) -> bytes:
 
     @retry(retry=retry_if_exception_type(ValidationError))
     @llm(
-        model="gemini/gemini-1.5-flash-002",
+        model="gpt-4o-mini",
+        # max_tokens=1000,
+        # max_completion_tokens=1000,
     )
     def generate_dialogue(text: str) -> Dialogue:
         """
-        Your task is to take the input text provided and turn it into an engaging, informative podcast dialogue. The input text may be messy or unstructured, as it could come from a variety of sources like PDFs or web pages. Don't worry about the formatting issues or any irrelevant information; your goal is to extract the key points and interesting facts that could be discussed in a podcast.
+        你的任務是將提供的輸入文本轉化為一段有趣且資訊豐富的podcast對話。輸入的文本可能是混亂或無結構的，因為它可能來自於各種來源，例如 PDF 或網頁。無需擔心格式問題或任何無關的信息；你的目標是提取關鍵點和有趣的事實，這些可以在podcast中進行討論。你負責將提供的輸入文本轉變為一份引人入勝且資訊豐富的podcast腳本。這些輸入可能是無結構或混亂的，來自於 PDF 或網頁。你的目標是提取最有趣且具有洞見的內容，用於引人入勝的的podcast討論。
 
-        Here is the input text you will be working with:
+        以下是你將處理的輸入文本：
 
         <input_text>
         {text}
         </input_text>
 
-        First, carefully read through the input text and identify the main topics, key points, and any interesting facts or anecdotes. Think about how you could present this information in a fun, engaging way that would be suitable for an audio podcast.
+        首先，仔細閱讀輸入文本，找出主要話題、關鍵點，以及任何有趣的事實或軼事。想一想如何以有趣且吸引人的方式呈現這些信息，使其適合於音頻podcast。忽略不相關的信息或格式問題。
 
         <scratchpad>
-        Brainstorm creative ways to discuss the main topics and key points you identified in the input text. Consider using analogies, storytelling techniques, or hypothetical scenarios to make the content more relatable and engaging for listeners.
+        腦力激盪如何以創意的方式討論從輸入文本中找出的主要話題和關鍵點。考慮使用類比、講故事技巧或假設的場景來使內容對聽眾更具親和力和吸引力。
 
-        Keep in mind that your podcast should be accessible to a general audience, so avoid using too much jargon or assuming prior knowledge of the topic. If necessary, think of ways to briefly explain any complex concepts in simple terms.
+        - 使用類比、講故事技巧或假設場景讓內容更容易引起共鳴
+        - 將複雜主題轉化為普通受眾能理解的內容
+        - 設計發人深省的問題以在播客中進行探索
+        - 創造性地填補信息中的任何空白
 
-        Use your imagination to fill in any gaps in the input text or to come up with thought-provoking questions that could be explored in the podcast. The goal is to create an informative and entertaining dialogue, so feel free to be creative in your approach.
+        請記住，你的podcast應該對一般受眾友好，因此避免使用過多術語或假設聽眾已具備該主題的背景知識。如果有必要，設法以簡單的方式解釋任何複雜的概念。
 
-        Write your brainstorming ideas and a rough outline for the podcast dialogue here. Be sure to note the key insights and takeaways you want to reiterate at the end.
+        發揮你的想像力，填補輸入文本中的任何空白，或提出一些發人深省的問題，可以在podcast中進行探索。目標是創造一段既具信息性又娛樂性的對話，因此可以自由運用創意。
         </scratchpad>
 
-        Now that you have brainstormed ideas and created a rough outline, it's time to write the actual podcast dialogue. Aim for a natural, conversational flow between the host and any guest speakers. Incorporate the best ideas from your brainstorming session and make sure to explain any complex topics in an easy-to-understand way.
+        現在你已經進行了腦力激盪並製作了一個粗略的大綱，接下來是撰寫實際的podcast對話。目標是讓主持人和嘉賓之間的對話自然流暢。融入腦力激盪中最好的點子，並確保以易於理解的方式解釋任何複雜的主題。
+        你將製作一個的podcast。
 
         <podcast_dialogue>
-        Write your engaging, informative podcast dialogue here, based on the key points and creative ideas you came up with during the brainstorming session. Use a conversational tone and include any necessary context or explanations to make the content accessible to a general audience. Use made-up names for the hosts and guests to create a more engaging and immersive experience for listeners. Do not include any bracketed placeholders like [Host] or [Guest]. Design your output to be read aloud -- it will be directly converted into audio.
+        根據你腦力激盪的創意和大綱，在此處撰寫有趣且信息豐富的的podcast對話。使用對話語氣，並包括必要的上下文或解釋，使內容對普通聽眾可及。
+        兩位主持人的名字分別為歐拉、加號。
+        設計你的輸出以便直接轉換成音頻——這將會被直接用於錄製的podcast。
 
-        Make the dialogue as long and detailed as possible, while still staying on topic and maintaining an engaging flow. Aim to use your full output capacity to create the longest podcast episode you can, while still communicating the key information from the input text in an entertaining way.
+        讓對話保持盡可能長且詳細，但依然專注於主題並保持對話的吸引力。利用你的全部輸出能力，創作一集長篇podcast劇本，同時以娛樂性和有趣的方式傳達輸入文本中的關鍵信息。
+        你將會講中文，但唯獨請用podcast代替播客。podcast名稱為「歐拉加號時事站」。
 
-        At the end of the dialogue, have the host and guest speakers naturally summarize the main insights and takeaways from their discussion. This should flow organically from the conversation, reiterating the key points in a casual, conversational manner. Avoid making it sound like an obvious recap - the goal is to reinforce the central ideas one last time before signing off.
+        開頭：
+        歐拉：大家好，歡迎收聽「歐拉加號時事站」，我是歐拉
+        加號：我是加號
+        歐拉：今天我們要討論的是...
+
+        過程：
+        創造主持人歐拉與加號之間自然的對話流程。歐拉有以下特點：
+        - 用強有力的開場抓住聽眾的注意力
+        - 隨著對話進行逐漸增加複雜性
+	    - 腦力激盪階段的最佳創意
+	    - 清晰解釋複雜主題
+	    - 吸引人且生動的語調以吸引聽眾
+	    - 信息與娛樂性的平衡
+        - 表現出真正的好奇心或驚訝的時刻
+        - 適當時刻的輕鬆幽默
+
+        對話規則：
+	    - 歐拉始終主導對話並訪問加號
+        - 包括歐拉的深思熟慮的問題來引導討論
+        - 自然的語音模式，包括偶爾的語氣詞（如 “嗯”，“對”，“沒錯”）
+        - 允許歐拉和加號之間的自然中斷和交流
+	    - 加號的回答需以輸入文本為依據，避免無根據的說法
+	    - 保持對所有觀眾適合的對話
+	    - 避免加號的任何營銷或自我推廣內容
+	    - 由歐拉總結並結束對話
+
+        在對話結尾處，自然地讓歐拉和加號總結他們的討論中主要的見解和要點。這應該是從對話中有機地流露出來的，而非明顯的重點回顧——目的是在結尾強化核心觀點，然後再結束。
         </podcast_dialogue>
         """
 
